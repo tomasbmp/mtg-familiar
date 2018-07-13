@@ -21,8 +21,10 @@ package com.gelakinetic.mtgfam.fragments;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -30,8 +32,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -43,10 +43,11 @@ import com.gelakinetic.mtgfam.fragments.dialogs.SortOrderDialogFragment;
 import com.gelakinetic.mtgfam.helpers.PreferenceAdapter;
 import com.gelakinetic.mtgfam.helpers.ResultListAdapter;
 import com.gelakinetic.mtgfam.helpers.SearchCriteria;
-import com.gelakinetic.mtgfam.helpers.ToastWrapper;
+import com.gelakinetic.mtgfam.helpers.SnackbarWrapper;
 import com.gelakinetic.mtgfam.helpers.database.CardDbAdapter;
 import com.gelakinetic.mtgfam.helpers.database.DatabaseManager;
 import com.gelakinetic.mtgfam.helpers.database.FamiliarDbException;
+import com.gelakinetic.mtgfam.helpers.database.FamiliarDbHandle;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -57,7 +58,7 @@ import java.util.Random;
 public class ResultListFragment extends FamiliarFragment {
 
     /* Constants for bundled arguments */
-    public static final String CARD_ID = "id";
+    private static final String CARD_ID = "id";
     public static final String CARD_ID_0 = "id0";
     public static final String CARD_ID_1 = "id1";
     public static final String CARD_ID_2 = "id2";
@@ -71,6 +72,7 @@ public class ResultListFragment extends FamiliarFragment {
     private Cursor mCursor;
     private ListView mListView;
     private SQLiteDatabase mDatabase;
+    private final FamiliarDbHandle mDbHandle = new FamiliarDbHandle();
 
     /**
      * When the fragment is created, open the database and search for whatever.
@@ -103,7 +105,7 @@ public class ResultListFragment extends FamiliarFragment {
      * @param outState Bundle in which to place your saved state.
      */
     @Override
-    public void onSaveInstanceState(Bundle outState) {
+    public void onSaveInstanceState(@NonNull Bundle outState) {
         try {
             outState.putInt(CURSOR_POSITION, mListView.getFirstVisiblePosition());
             View tmp = mListView.getChildAt(0);
@@ -135,6 +137,48 @@ public class ResultListFragment extends FamiliarFragment {
         super.onResume();
         fillData();
         mListView.setSelectionFromTop(mCursorPosition, mCursorPositionOffset);
+
+//        mCursor.moveToFirst();
+//        while (!mCursor.isAfterLast()) {
+//            try {
+//                MtgCard toAdd = new MtgCard(
+//                        mCursor.getString(mCursor.getColumnIndex(CardDbAdapter.KEY_NAME)),
+//                        mCursor.getString(mCursor.getColumnIndex(CardDbAdapter.KEY_SET)),
+//                        false, 1, false);
+//
+//                WishlistHelpers.addItemToWishlist(getActivity(),
+//                        new WishlistHelpers.CompressedWishlistInfo(toAdd, 0));
+//
+//                // Read the decklist
+//                String deckFileName = "Slivers" + DecklistFragment.DECK_EXTENSION;
+//                ArrayList<MtgCard> decklist =
+//                        DecklistHelpers.ReadDecklist(getActivity(), deckFileName, false);
+//
+//                // Look through the decklist for any existing matches
+//                boolean entryIncremented = false;
+//                for (MtgCard deckEntry : decklist) {
+//                    if (!deckEntry.isSideboard() && // not in the sideboard
+//                            deckEntry.getName().equals(toAdd.getName()) &&
+//                            deckEntry.getExpansion().equals(toAdd.getExpansion())) {
+//                        // Increment the card already in the deck
+//                        deckEntry.mNumberOf++;
+//                        entryIncremented = true;
+//                        break;
+//                    }
+//                }
+//                if (!entryIncremented) {
+//                    // Add a new card to the deck
+//                    decklist.add(toAdd);
+//                }
+//
+//                // Write the decklist back
+//                DecklistHelpers.WriteDecklist(getActivity(), decklist, deckFileName);
+//
+//            } catch (java.lang.InstantiationException e) {
+//                /* Eat it */
+//            }
+//            mCursor.moveToNext();
+//        }
     }
 
     /**
@@ -149,7 +193,7 @@ public class ResultListFragment extends FamiliarFragment {
      * @return the view if the fragment is showing, null if otherwise
      */
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
         if (container == null) {
             /* Something is happening when the fragment is on the back stack */
@@ -163,9 +207,9 @@ public class ResultListFragment extends FamiliarFragment {
 
         /* Open up the database, search for stuff */
         try {
-            mDatabase = DatabaseManager.getInstance(getActivity(), false).openDatabase(false);
+            mDatabase = DatabaseManager.openDatabase(getActivity(), false, mDbHandle);
             doSearch(this.getArguments(), mDatabase);
-        } catch (FamiliarDbException e) {
+        } catch (SQLiteException | FamiliarDbException e) {
             handleFamiliarDbException(true);
             return myFragmentView;
         }
@@ -207,7 +251,7 @@ public class ResultListFragment extends FamiliarFragment {
             }
         } else if (this.isAdded()) {
             if (mCursor == null || mCursor.getCount() == 0) {
-                ToastWrapper.makeAndShowText(this.getActivity(), R.string.search_toast_no_results, ToastWrapper.LENGTH_SHORT
+                SnackbarWrapper.makeAndShowText(this.getActivity(), R.string.search_toast_no_results, SnackbarWrapper.LENGTH_SHORT
                 );
                 if (!getActivity().isTaskRoot()) {
                     getActivity().finish();
@@ -219,43 +263,43 @@ public class ResultListFragment extends FamiliarFragment {
                 long id = mCursor.getLong(mCursor.getColumnIndex(CardDbAdapter.KEY_ID));
                 try {
                     startCardViewFrag(id);
-                } catch (FamiliarDbException e) {
+                } catch (SQLiteException | FamiliarDbException e) {
                     handleFamiliarDbException(true);
                 }
             } else {
                 if (savedInstanceState == null) {
-                    ToastWrapper.makeAndShowText(this.getActivity(), String.format(getResources().getQuantityString(R.plurals.search_toast_results, mCursor.getCount()),
-                            mCursor.getCount()), ToastWrapper.LENGTH_LONG);
+                    SnackbarWrapper.makeAndShowText(this.getActivity(), String.format(getResources().getQuantityString(R.plurals.search_toast_results, mCursor.getCount()),
+                            mCursor.getCount()), SnackbarWrapper.LENGTH_LONG);
                 }
             }
         }
 
-        mListView.setOnItemClickListener(new OnItemClickListener() {
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                try {
-                    startCardViewFrag(id);
-                } catch (FamiliarDbException e) {
-                    handleFamiliarDbException(true);
-                }
+        mListView.setOnItemClickListener((parent, view, position, id) -> {
+            try {
+                startCardViewFrag(id);
+            } catch (SQLiteException | FamiliarDbException e) {
+                handleFamiliarDbException(true);
             }
         });
 
-        mListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
-                String cardName = ((TextView) view.findViewById(R.id.card_name)).getText().toString();
-                String cardSet = null;
-                if(view.findViewById(R.id.cardset).getVisibility() == View.VISIBLE) {
-                    cardSet = ((TextView) view.findViewById(R.id.cardset)).getText().toString();
-                }
-                showDialog(ResultListDialogFragment.QUICK_ADD, cardName, cardSet);
-                return true;
-            }
+        mListView.setOnItemLongClickListener((adapterView, view, i, l) -> {
+            String cardName = ((TextView) view.findViewById(R.id.card_name)).getText().toString();
+            String cardSet = ((TextView) view.findViewById(R.id.cardset)).getText().toString();
+            showDialog(ResultListDialogFragment.QUICK_ADD, cardName, cardSet);
+            return true;
         });
 
         return myFragmentView;
     }
 
+    /**
+     * TODO doc
+     * TODO don't use bundle?
+     *
+     * @param args
+     * @param database
+     * @throws FamiliarDbException
+     */
     private void doSearch(Bundle args, SQLiteDatabase database) throws FamiliarDbException {
         long id;
         /* This is just the multiverse ID, from a TutorCards search */
@@ -280,9 +324,9 @@ public class ResultListFragment extends FamiliarFragment {
                     CardDbAdapter.DATABASE_TABLE_CARDS + "." + CardDbAdapter.KEY_MULTIVERSEID
             }, database);
         }
-            /* If "id0" exists, then it's three cards and they should be merged
-             * Otherwise, do a search with the given criteria
-             */
+        /* If "id0" exists, then it's three cards and they should be merged
+         * Otherwise, do a search with the given criteria
+         */
         else if ((id = args.getLong(CARD_ID_0)) != 0L) {
             long id1 = args.getLong(CARD_ID_1);
             long id2 = args.getLong(CARD_ID_2);
@@ -296,7 +340,7 @@ public class ResultListFragment extends FamiliarFragment {
                     CardDbAdapter.KEY_ABILITY, CardDbAdapter.KEY_POWER, CardDbAdapter.KEY_TOUGHNESS, CardDbAdapter.KEY_LOYALTY,
                     CardDbAdapter.KEY_NUMBER, CardDbAdapter.KEY_CMC, CardDbAdapter.KEY_COLOR};
 
-            SearchCriteria criteria = (SearchCriteria) args.getSerializable(SearchViewFragment.CRITERIA);
+            SearchCriteria criteria = PreferenceAdapter.getSearchCriteria(getContext());
             assert criteria != null; /* Because Android Studio */
             boolean consolidate = (criteria.setLogic == CardDbAdapter.MOST_RECENT_PRINTING ||
                     criteria.setLogic == CardDbAdapter.FIRST_PRINTING);
@@ -315,7 +359,7 @@ public class ResultListFragment extends FamiliarFragment {
         if (mCursor != null) {
             mCursor.close();
         }
-        DatabaseManager.getInstance(getActivity(), false).closeDatabase(false);
+        DatabaseManager.closeDatabase(getActivity(), mDbHandle);
     }
 
     /**
@@ -325,14 +369,13 @@ public class ResultListFragment extends FamiliarFragment {
         if (mCursor != null) {
             ArrayList<String> fromList = new ArrayList<>();
             ArrayList<Integer> toList = new ArrayList<>();
+            // Always get name, set, and rarity. This is for the wishlist quick add
             fromList.add(CardDbAdapter.KEY_NAME);
             toList.add(R.id.card_name);
-            if (PreferenceAdapter.getSetPref(getContext())) {
-                fromList.add(CardDbAdapter.KEY_SET);
-                toList.add(R.id.cardset);
-                fromList.add(CardDbAdapter.KEY_RARITY);
-                toList.add(R.id.rarity);
-            }
+            fromList.add(CardDbAdapter.KEY_SET);
+            toList.add(R.id.cardset);
+            fromList.add(CardDbAdapter.KEY_RARITY);
+            toList.add(R.id.rarity);
             if (PreferenceAdapter.getManaCostPref(getContext())) {
                 fromList.add(CardDbAdapter.KEY_MANACOST);
                 toList.add(R.id.cardcost);
@@ -375,6 +418,7 @@ public class ResultListFragment extends FamiliarFragment {
      */
     private void startCardViewFrag(long id) throws FamiliarDbException {
         try {
+            // TODO don't use bundle?
             Bundle args = new Bundle();
             int cardPosition = 0;
 
@@ -441,7 +485,7 @@ public class ResultListFragment extends FamiliarFragment {
             case R.id.search_menu_random_search:
                 try {
                     startCardViewFrag(-1);
-                } catch (FamiliarDbException e) {
+                } catch (SQLiteException | FamiliarDbException e) {
                     handleFamiliarDbException(true);
                 }
                 return true;
@@ -502,7 +546,7 @@ public class ResultListFragment extends FamiliarFragment {
             doSearch(getArguments(), mDatabase);
             /* Display the newly sorted data */
             fillData();
-        } catch (FamiliarDbException e) {
+        } catch (SQLiteException | FamiliarDbException e) {
             handleFamiliarDbException(true);
         }
     }

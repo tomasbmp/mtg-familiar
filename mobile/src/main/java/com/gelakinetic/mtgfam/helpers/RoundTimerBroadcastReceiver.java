@@ -193,7 +193,7 @@ public class RoundTimerBroadcastReceiver extends BroadcastReceiver {
                             AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
 
                     if (res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                                            /* Do some speaking, on the alarm stream */
+                        /* Do some speaking, on the alarm stream */
                         HashMap<String, String> ttsParams = new HashMap<>();
                         ttsParams.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WARNING_SPEECH);
                         ttsParams.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(AudioManager.STREAM_ALARM));
@@ -269,10 +269,14 @@ public class RoundTimerBroadcastReceiver extends BroadcastReceiver {
     }
 
     private void PlayNotificationSoundOrTTS(final Context context, Boolean useSound, String soundURI, int textID) {
-        if (useSound) {
-            PlayNotificationSound(context, soundURI);
-        } else {
-            context.startService(new Intent(context, TtsService.class).putExtra(TEXT_TO_SPEAK, textID));
+        try {
+            if (useSound) {
+                PlayNotificationSound(context, soundURI);
+            } else {
+                context.startService(new Intent(context, TtsService.class).putExtra(TEXT_TO_SPEAK, textID));
+            }
+        } catch (IllegalStateException e) {
+            /* Eat it */
         }
     }
 
