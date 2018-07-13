@@ -63,6 +63,7 @@ import com.gelakinetic.mtgfam.helpers.model.Comparison;
 import com.gelakinetic.mtgfam.helpers.view.ComparisonSpinner;
 import com.gelakinetic.mtgfam.helpers.view.CompletionView;
 import com.gelakinetic.mtgfam.helpers.view.ManaCostTextView;
+import com.tokenautocomplete.TokenCompleteTextView;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -762,14 +763,14 @@ public class SearchViewFragment extends FamiliarFragment {
      */
     private void clear() {
         mNameField.setText("");
-        mSupertypeField.clearTextAndTokens();
-        mSubtypeField.clearTextAndTokens();
+        clearTextAndTokens(mSupertypeField);
+        clearTextAndTokens(mSubtypeField);
         mTextField.setText("");
         mArtistField.setText("");
         mWatermarkField.setText("");
         mFlavorField.setText("");
         mCollectorsNumberField.setText("");
-        mSetField.clearTextAndTokens();
+        clearTextAndTokens(mSetField);
 
         mCheckboxW.setChecked(false);
         mCheckboxU.setChecked(false);
@@ -798,7 +799,7 @@ public class SearchViewFragment extends FamiliarFragment {
         mCmcLogic.setSelection(0);
         mCmcLogic.setSelection(1); /* CMC should default to < */
         mCmcChoice.setSelection(0);
-        mManaCostTextView.clearTextAndTokens();
+        clearTextAndTokens(mManaCostTextView);
         mManaComparisonSpinner.setSelection(Comparison.EMPTY.ordinal());
 
         if (mSetCheckedIndices != null) {
@@ -809,6 +810,19 @@ public class SearchViewFragment extends FamiliarFragment {
         this.removeDialog(getFragmentManager());
 
         checkDialogButtonColors();
+    }
+
+    /**
+     * Clear all the tokens and stray text from a TokenCompleteTextView
+     *
+     * @param view The view to clear tokens and stray text from
+     */
+    private void clearTextAndTokens(TokenCompleteTextView<String> view) {
+        view.clearCompletionText();
+        for (String token : view.getObjects()) {
+            // This is an asynchronous action, so it's safe(ish) in a loop
+            view.removeObject(token);
+        }
     }
 
     /**
@@ -844,7 +858,7 @@ public class SearchViewFragment extends FamiliarFragment {
                     mSupertypeField.addObject(supertype);
                 }
             } else {
-                mSupertypeField.clearTextAndTokens();
+                clearTextAndTokens(mSupertypeField);
             }
 
             if (null != criteria.subTypes && criteria.subTypes.size() > 0) {
@@ -852,7 +866,7 @@ public class SearchViewFragment extends FamiliarFragment {
                     mSubtypeField.addObject(subtype);
                 }
             } else {
-                mSubtypeField.clearTextAndTokens();
+                clearTextAndTokens(mSubtypeField);
             }
 
             mTextField.setText(criteria.text);
@@ -951,14 +965,14 @@ public class SearchViewFragment extends FamiliarFragment {
                     mSetField.addObject(set);
                 }
             } else {
-                mSetField.clearTextAndTokens();
+                clearTextAndTokens(mSetField);
             }
             if (criteria.manaCost != null && criteria.manaCost.size() > 0) {
                 for (String mana : criteria.manaCost) {
                     mManaCostTextView.addObject(mana);
                 }
             } else {
-                mManaCostTextView.clearTextAndTokens();
+                clearTextAndTokens(mManaCostTextView);
             }
             mManaComparisonSpinner.setSelection(criteria.manaCostLogic.ordinal());
             if (mFormatNames != null) {
